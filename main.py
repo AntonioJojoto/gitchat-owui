@@ -9,6 +9,14 @@ import git
 from pydantic import BaseModel, Field, HttpUrl
 from pathlib import Path
 
+
+from retriever_qdrant import index_repo, search_repo
+from pathlib import Path
+from pydantic import BaseModel
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 # Define la carpeta raíz donde se clonan/repos guardan
 REPO_ROOT = Path.home() / "repos"
 REPO_ROOT.mkdir(exist_ok=True)
@@ -52,6 +60,9 @@ class GitTools(str, Enum):
 
 # ----------------- MODELS -----------------
 
+class IndexRequest(BaseModel):
+    repo_path: str
+    collection_name: str
 
 class GitRepoPath(BaseModel):
     repo_path: str = Field(..., description="File system path to the Git repository.")
@@ -318,3 +329,20 @@ async def show_revision(request: GitShowRequest):
             raise HTTPException(status_code=500, detail=f"Error showing revision: {str(e)}")
         raise e
 
+
+@app.post("/index")
+async def index_repo_endpoint(request: IndexRequest):
+    try:
+        repo_path = (REPO_ROOT / request.repo_path).resolve()
+        index_repo(repo_path,request.collection_name)
+        return {"status": "success", "message": f"Indexed {request.repo_path} to {request.collection_name}"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/retrieve")
+async def retrieve(query: str, collection_name: str):
+    try:
+        results = search_repo(query, collection_name)
+        return {"results": results}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
