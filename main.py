@@ -31,7 +31,7 @@ logger = logging.getLogger("git-api")
 app = FastAPI(
     title="git-api",
     version="0.1.0",
-    description="An API to manage Git repositories with explicit endpoints, inputs, and outputs for better OpenAPI schemas.",
+    description="An API for managing Git repositories and their contents. Provides endpoints for cloning, listing, and performing common Git operations like status, diff, log, checkout, and show. Also includes functionality for indexing repository content for search and retrieving relevant code snippets.",
 )
 
 origins = ["*"]
@@ -183,7 +183,7 @@ def validate_repo_exists(repo_path: str) -> Path:
 @app.post(
     "/clone",
     response_model=TextResponse,
-    description="Clone a remote Git repository into the local repos directory",
+    description="Clones a remote Git repository specified by a URL into the local 'repos' directory. Useful for adding new repositories to the system for management and indexing.",
     tags=["Repository Management"],
 )
 async def clone_repo(request: CloneRequest):
@@ -208,7 +208,7 @@ async def clone_repo(request: CloneRequest):
 @app.get(
     "/repos",
     response_model=List[str],
-    description="List all cloned repositories",
+    description="Retrieves a list of the names of all Git repositories that have been cloned into the local 'repos' directory. Useful for identifying available repositories.",
     tags=["Repository Management"],
 )
 async def list_repos():
@@ -223,7 +223,7 @@ async def list_repos():
 @app.post(
     "/status",
     response_model=TextResponse,
-    description="Get the current status of the Git repository.",
+    description="Gets the current status of a specified Git repository, including information about modified, added, and untracked files. Requires the path to the repository.",
     tags=["Git Operations"],
 )
 async def get_status(request: GitStatusRequest):
@@ -241,7 +241,7 @@ async def get_status(request: GitStatusRequest):
 @app.post(
     "/diff",
     response_model=TextResponse,
-    description="Get comparison between two branches or commits.",
+    description="Generates a diff showing the differences between the current state of a repository and a specified target (branch or commit). Requires the repository path and the target for comparison.",
     tags=["Git Operations"],
 )
 async def diff_target(request: GitDiffRequest):
@@ -259,7 +259,7 @@ async def diff_target(request: GitDiffRequest):
 @app.post(
     "/log",
     response_model=LogResponse,
-    description="Get recent commit history of the repository.",
+    description="Retrieves the recent commit history for a specified Git repository. Can be limited by the maximum number of commits. Requires the repository path.",
     tags=["Git Operations"],
 )
 async def get_log(request: GitLogRequest):
@@ -283,7 +283,7 @@ async def get_log(request: GitLogRequest):
 @app.post(
     "/checkout", 
     response_model=TextResponse, 
-    description="Checkout an existing branch.",
+    description="Switches the current branch of a specified Git repository to an existing branch. Requires the repository path and the name of the branch to checkout.",
     tags=["Git Operations"],
 )
 async def checkout_branch(request: GitCheckoutRequest):
@@ -308,7 +308,7 @@ async def checkout_branch(request: GitCheckoutRequest):
 @app.post(
     "/show",
     response_model=TextResponse,
-    description="Show details and diff of a specific commit.",
+    description="Displays the details and diff of a specific commit or revision in a Git repository. Requires the repository path and the commit hash or revision name.",
     tags=["Git Operations"],
 )
 async def show_revision(request: GitShowRequest):
@@ -330,7 +330,10 @@ async def show_revision(request: GitShowRequest):
         raise e
 
 
-@app.post("/index")
+@app.post(
+    "/index",
+    description="Indexes the content of a specified Git repository into a search collection. Useful for making repository content searchable.",
+)
 async def index_repo_endpoint(request: IndexRequest):
     try:
         repo_path = (REPO_ROOT / request.repo_path).resolve()
@@ -341,7 +344,7 @@ async def index_repo_endpoint(request: IndexRequest):
 
 @app.get(
     "/retrieve",
-    description="Retrieve relevant code snippets based on a natural language query from a specified repository collection.",
+    description="Searches a specified indexed repository collection using a natural language query and retrieves relevant code snippets. Useful for finding code related to a specific topic or function.",
     tags=["Search"],
 )
 async def retrieve(query: str, collection_name: str):
@@ -354,7 +357,7 @@ async def retrieve(query: str, collection_name: str):
 @app.post(
     "/pull_and_index",
     response_model=TextResponse,
-    description="Pull the latest changes for an existing repository and reindex it.",
+    description="Pulls the latest changes from the remote origin for a specified Git repository and then reindexes its content. Ensures the search index is up-to-date with the latest code.",
     tags=["Repository Management"],
 )
 async def pull_and_index_repo(request: GitRepoPath):
