@@ -339,10 +339,46 @@ async def index_repo_endpoint(request: IndexRequest):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-@app.get("/retrieve")
+@app.get(
+    "/retrieve",
+    description="Retrieve relevant code snippets based on a natural language query from a specified repository collection.",
+    tags=["Search"],
+)
 async def retrieve(query: str, collection_name: str):
     try:
         results = search_repo(query, collection_name)
         return {"results": results}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@app.post(
+    "/pull_and_index",
+    response_model=TextResponse,
+    description="Pull the latest changes for an existing repository and reindex it.",
+    tags=["Repository Management"],
+)
+async def pull_and_index_repo(request: GitRepoPath):
+    try:
+        repo_path_str = request.repo_path
+        full_repo_path = REPO_ROOT / repo_path_str if not repo_path_str.startswith("/") else Path(repo_path_str)
+
+        # Validate repository exists
+        validate_repo_exists(repo_path_str)
+
+        repo = get_repo(repo_path_str)
+        
+        logger.info(f"Pulling latest changes for repository at {full_repo_path}")
+        origin = repo.remotes.origin
+        origin.pull()
+
+        # Use the repository name as the collection name for indexing
+        collection_name = full_repo_path.name
+        logger.info(f"Reindexing repository {repo_path_str} into collection {collection_name}")
+        index_repo(full_repo_path, collection_name)
+
+        return TextResponse(result=f"Repository '{repo_path_str}' pulled and reindexed successfully into collection '{collection_name}'.")
+    except Exception as e:
+        logger.error(f"Error pulling and reindexing repository: {e}")
+        if not isinstance(e, HTTPException):
+            raise HTTPException(status_code=500, detail=f"Error pulling and reindexing repository: {str(e)}")
+        raise e

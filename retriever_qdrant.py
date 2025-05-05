@@ -43,7 +43,7 @@ def index_repo(repo_path: Path, collection_name: str):
 # Add documents (this avoids pickling issues)
     vectorstore.add_documents(chunks)
 
-def search_repo(query: str, collection_name: str, k: int = 5):
+def search_repo(query: str, collection_name: str, k: int = 10):
     retriever = QdrantStore(client=qdrant, collection_name=collection_name, embeddings=embeddings)
     results = retriever.similarity_search(query, k=k)
     return [{"source": r.metadata["source"], "content": r.page_content} for r in results]
